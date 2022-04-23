@@ -13,16 +13,16 @@ var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var User = require('./Users');
 var Movie = require('./Movies');
-var Review = require('./Reviews')
+var Review = require('./Reviews');
 require("dotenv").config();
 var app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-
 app.use(passport.initialize());
 
 var router = express.Router();
+
 
 function getJSONObjectForMovieRequirement(req) {
     var json = {
@@ -148,7 +148,15 @@ router.route('/movies')
             });
         }
         else{
-            if(req.body.reviews==='true'){
+        
+
+
+            var url =  new URL('localhost:8000'+ req.url);
+            var reviews = url.search
+
+            reviews = reviews.search('reviews=true')
+            
+            if(reviews===1){
                 var req_reviews;
                 Review.find({title: req.body.title}, function(err, reviews){
                     req_reviews = reviews;
