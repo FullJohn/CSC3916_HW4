@@ -10,6 +10,7 @@ var passport = require('passport');
 var authController = require('./auth');
 var authJwtController = require('./auth_jwt');
 var jwt = require('jsonwebtoken');
+var jwt_decode = require('jwt-decode');
 var cors = require('cors');
 var User = require('./Users');
 var Movie = require('./Movies');
@@ -132,42 +133,75 @@ router.route('/movies')
             movie.year = req.body.year;
             movie.genre = req.body.genre;
             movie.actors = req.body.actors;
+            movie.imageUrl = req.body.imageUrl;
         
             movie.save(function(err){
                 res.json({success: true, msg: 'Successfully added movie.'})
             });
         }
     })
+
     .get(authJwtController.isAuthenticated, function(req, res) {
+
+        var url = new URL('localhost:8080' + req.url);
+        var movieId = url.searchParams.get('movieId');
+        var reviews = url.searchParams.get('reviews');
         
-        if(!req.body.title){
-            Movie.find({}, function(err,movies){
-                if(err) throw err;
-                console.log(movies);
-                res.json({success: true, query: movies});
-            });
-        }
-        else{
         
-
-
-            var url =  new URL('localhost:8000'+ req.url);
-            var reviews = url.search
-
-            reviews = reviews.search('reviews=true')
+        if (movieId === null){
             
-            if(reviews===1){
-                var req_reviews;
-                Review.find({title: req.body.title}, function(err, reviews){
-                    req_reviews = reviews;
+            Movie.find({}, function(err, movies){
+                if(err) throw err;
+                res.json(movies)
+            })
+        }
+       
+        else{
+            if(reviews === 'true' || reviews === 'True'){
+                var _movie;
+                console.log("movie fetched with reviews")
+                Movie.findOne({_id: movieId}, function(err, movie){
+                    title = movie.title
+                    _movie = movie
                 })
-                Movie.findOne({title: req.body.title}, function(err, movie){
-                    res.json({sucess: true, movie: movie, reviews: req_reviews})
+                
+                
+                Review.find({movieId: movieId}, function(err, reviews){
+                
+                    if(!_movie){
+                        var actors = '';
+                        var title = '';
+                        var imageUrl = '';
+
+                    }
+                    else{
+                        var actors = _movie.actors;
+                        var title = _movie.title;
+                        var imageUrl = _movie.imageUrl;
+                    }
+                    
+
+
+                    var avgRating = 0;
+                    var totalRating = 0;
+                    var totalReviews = 0;
+                    var length = reviews.length;
+                    for(var i = 0; i < length; i++){
+                        totalReviews += 1;
+                        totalRating += reviews[i].rating;
+                
+                     }
+                    avgRating = totalRating/totalReviews
+                    
+                    
+                    res.json({title, imageUrl, actors, reviews, avgRating})
                 })
             }
             else{
-                Movie.findOne({title: req.body.title}, function(err, movie){
-                    res.json({success: true, query: movie, reviews: req.body.reviews});
+                
+                Movie.find({_id: movieId}, function(err, movies){
+                    console.log("movie fetched: " + movies)
+                    res.json(movies);
                 });
             }
         }
@@ -211,14 +245,17 @@ router.route('/movies')
 // '/reviews' methods
 router.route('/reviews')
     .post(authJwtController.isAuthenticated, function(req, res) {
-        if (!req.body.title || !req.body.quote || !req.body.rating) {
+        console.log(req.body.movieId)
+        console.log(req.body.quote)
+        console.log(req.body.rating)
+        if (!req.body.movieId || !req.body.quote || !req.body.rating) {
             res.json({success: false, msg: 'Please fill out all of the forms'})
         }
         if(req.body.rating > 5 || req.body.rating < 1){
             res.json({success: false, msg: "Enter a rating between 1 and 5"})
         }
         else{
-            Movie.findOne({title: req.body.title}, function(err, movie){
+            Movie.findOne({_id: req.body.movieId}, function(err, movie){
                 if(movie == null){
                     res.json({success: false, msg:"No movie with that title in database.", query: movie});
                 }
@@ -226,12 +263,22 @@ router.route('/reviews')
                     var review = new Review();
                 
                     //authJwtController.passport
-                    review.user = req.headers.authorization.split(" ")[1].split('.')[0]
-                    review.title = req.body.title
-                    review.quote = req.body.quote
-                    review.rating = req.body.rating
+                    //var user = req.headers.authorization.split(" ")[1].split('.')[1]
+                    var user = jwt_decode(req.headers.authorization).username
+                    
+                    //review.title = req.body.title
+                    review.user = user;
+                    review.quote = req.body.quote;
+                    review.rating = req.body.rating;
+                    review.movieId = movie._id;
                     review.save(function(err){
-                        res.json({success: true, msg: 'Successfully added review.'})
+                        if(err){
+                            console.log("Error: " + err)
+                        }
+                        else{
+                            res.json({success: true, msg: 'Successfully added review.'})
+                        }
+                        
                     });
                 }
             })      
